@@ -1,86 +1,72 @@
 package main
 
 import (
-	"bufio"
 	"encoding/csv"
 	"flag"
 	"fmt"
-	"io"
 	"os"
-	"strconv"
-	"strings"
 )
 
-const helpString string = `-cvs string 
-	a csv file in format "question,answer". Default is "problems.csv".
--h 
-	See help menu for flag options.
-`
-
-func main() {
-	helpFlag := flag.Bool("h", false, "See flag options for program")
-	csvFlag := flag.String("csv", "./problems.csv", "Path to csv file") // TODO: See where to validate path
-	flag.Parse()
-
-	if *helpFlag {
-		printFlags()
-		os.Exit(0)
-	}
-
-	playQuiz(*csvFlag)
+type problem struct {
+	question string
+	answer   string
 }
 
-func playQuiz(filePath string) error {
+func main() {
+	csvFile := flag.String("csv", "./problems.csv", "Path to csv file")
+	flag.Parse()
+
+	playQuiz(*csvFile)
+}
+
+func playQuiz(filePath string) {
 	// Bonus: see how to handle a user exit
 	questionsAsked, correctAnswers := 0, 0
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("Error reading file: %q", err)
+		exit(fmt.Sprintf("Error opening file: %q", err))
 	}
 
 	defer file.Close()
 
 	r := csv.NewReader(file)
 
-	for {
-		problem, err := r.Read()
-		if err == io.EOF {
-			break
-		}
+	lines, err := r.ReadAll()
+	if err != nil {
+		exit(fmt.Sprintf("Failed to parse csv file: %v", err))
+	}
 
-		if err != nil {
-			return fmt.Errorf("Error reading file: %q", err)
-		}
+	problems := parseLines(lines)
 
-		answer, err := strconv.Atoi(problem[1])
-		if err != nil {
-			return fmt.Errorf("Wrong answer format")
-		}
-
-		inputPrompt := bufio.NewReader(os.Stdin)
-		fmt.Printf("%s: ", problem[0])
-		text, _ := inputPrompt.ReadString('\n')
-
+	for _, problem := range problems {
+		fmt.Printf("%s: ", problem.question)
 		questionsAsked += 1
 
-		text = strings.TrimSpace(text)
+		var userAnswer string
+		fmt.Scanf("%s\n", &userAnswer)
 
-		userAnswer, err := strconv.Atoi(text)
-		if err != nil {
-			return fmt.Errorf("Wrong answer format: %q", err)
-		}
-
-		if userAnswer == answer {
+		if userAnswer == problem.answer {
 			correctAnswers += 1
 		}
 	}
 
 	fmt.Printf("Quiz Done!\n problems: %d\n correct answers: %d\n", questionsAsked, correctAnswers)
-	return nil
 }
 
-// Prints all flag options
-func printFlags() {
-	fmt.Print(helpString)
+func parseLines(lines [][]string) []problem {
+	problems := make([]problem, len(lines))
+	for i, line := range lines {
+		problems[i] = problem{
+			question: line[0],
+			answer:   line[1],
+		}
+	}
+
+	return problems
+}
+
+func exit(msg string) {
+	fmt.Println(msg)
+	os.Exit(1)
 }
