@@ -32,7 +32,7 @@ func main() {
 
 	var ans = answers{}
 
-	go playQuiz(problems, &ans, timer, done)
+	go playQuiz(problems, &ans, done)
 	select {
 	case <-timer.C:
 		fmt.Println("Timer done")
@@ -43,7 +43,7 @@ func main() {
 	printResults(&ans)
 }
 
-func playQuiz(problems []problem, ans *answers, timer *time.Timer, done chan bool) {
+func playQuiz(problems []problem, ans *answers, done chan bool) {
 	for _, problem := range problems {
 		fmt.Printf("%s: ", problem.question)
 		ans.question++
@@ -56,7 +56,6 @@ func playQuiz(problems []problem, ans *answers, timer *time.Timer, done chan boo
 		}
 	}
 
-	timer.Stop()
 	done <- true
 }
 
