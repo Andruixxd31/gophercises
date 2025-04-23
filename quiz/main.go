@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 )
 
 type problem struct {
@@ -12,17 +13,35 @@ type problem struct {
 	answer   string
 }
 
-func main() {
-	csvFile := flag.String("csv", "./problems.csv", "Path to csv file")
-	flag.Parse()
-
-	playQuiz(*csvFile)
+type answers struct {
+	question int
+	correct  int
 }
 
-func playQuiz(filePath string) {
-	// Bonus: see how to handle a user exit
-	questionsAsked, correctAnswers := 0, 0
+func main() {
+	csvFile := flag.String("csv", "./problems.csv", "Path to csv file")
+	limit := flag.Int("time", 30, "Time to run test for in seconds. Default is 30 seconds")
+	flag.Parse()
 
+	done := make(chan bool)
+
+	limitDuration := time.Duration(*limit) * time.Second
+	timer := time.NewTimer(limitDuration)
+
+	var ans = answers{}
+
+	go playQuiz(*csvFile, &ans, timer, done)
+	select {
+	case <-timer.C:
+		fmt.Println("Timer done")
+	case <-done:
+		fmt.Println("Finished test")
+	}
+
+	printResults(&ans)
+}
+
+func playQuiz(filePath string, ans *answers, timer *time.Timer, done chan bool) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		exit(fmt.Sprintf("Error opening file: %q", err))
@@ -41,17 +60,18 @@ func playQuiz(filePath string) {
 
 	for _, problem := range problems {
 		fmt.Printf("%s: ", problem.question)
-		questionsAsked += 1
+		ans.question++
 
 		var userAnswer string
 		fmt.Scanf("%s\n", &userAnswer)
 
 		if userAnswer == problem.answer {
-			correctAnswers += 1
+			ans.correct++
 		}
 	}
 
-	fmt.Printf("Quiz Done!\n problems: %d\n correct answers: %d\n", questionsAsked, correctAnswers)
+	timer.Stop()
+	done <- true
 }
 
 func parseLines(lines [][]string) []problem {
@@ -64,6 +84,10 @@ func parseLines(lines [][]string) []problem {
 	}
 
 	return problems
+}
+
+func printResults(ans *answers) {
+	fmt.Printf("Quiz Done!\n problems: %d\n correct answers: %d\n", ans.question, ans.correct)
 }
 
 func exit(msg string) {
