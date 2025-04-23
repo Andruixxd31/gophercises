@@ -23,6 +23,8 @@ func main() {
 	limit := flag.Int("time", 30, "Time to run test for in seconds. Default is 30 seconds")
 	flag.Parse()
 
+	problems := readFile(*csvFile)
+
 	done := make(chan bool)
 
 	limitDuration := time.Duration(*limit) * time.Second
@@ -30,7 +32,7 @@ func main() {
 
 	var ans = answers{}
 
-	go playQuiz(*csvFile, &ans, timer, done)
+	go playQuiz(problems, &ans, timer, done)
 	select {
 	case <-timer.C:
 		fmt.Println("Timer done")
@@ -41,23 +43,7 @@ func main() {
 	printResults(&ans)
 }
 
-func playQuiz(filePath string, ans *answers, timer *time.Timer, done chan bool) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		exit(fmt.Sprintf("Error opening file: %q", err))
-	}
-
-	defer file.Close()
-
-	r := csv.NewReader(file)
-
-	lines, err := r.ReadAll()
-	if err != nil {
-		exit(fmt.Sprintf("Failed to parse csv file: %v", err))
-	}
-
-	problems := parseLines(lines)
-
+func playQuiz(problems []problem, ans *answers, timer *time.Timer, done chan bool) {
 	for _, problem := range problems {
 		fmt.Printf("%s: ", problem.question)
 		ans.question++
@@ -72,6 +58,24 @@ func playQuiz(filePath string, ans *answers, timer *time.Timer, done chan bool) 
 
 	timer.Stop()
 	done <- true
+}
+
+func readFile(filePath string) []problem {
+	file, err := os.Open(filePath)
+	if err != nil {
+		exit(fmt.Sprintf("Error opening file: %q", err))
+	}
+
+	defer file.Close()
+
+	r := csv.NewReader(file)
+
+	lines, err := r.ReadAll()
+	if err != nil {
+		exit(fmt.Sprintf("Failed to parse csv file: %v", err))
+	}
+
+	return parseLines(lines)
 }
 
 func parseLines(lines [][]string) []problem {
